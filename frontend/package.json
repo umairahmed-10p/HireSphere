@@ -1,12 +1,15 @@
 {
-  "name": "my-v0-project",
-  "version": "0.1.0",
+  "name": "hiresphere",
+  "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "backend:dev": "npm run start:dev --workspace=@hiresphere/backend",
+    "backend:build": "npm run build --workspace=@hiresphere/backend",
+    "frontend:dev": "npm run dev --workspace=@hiresphere/frontend",
+    "frontend:build": "npm run build --workspace=@hiresphere/frontend"
   },
   "dependencies": {
     "@ai-sdk/openai": "latest",
@@ -43,7 +46,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
-    "date-fns": "4.1.0",
+    "date-fns": "^2.30.0",
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
@@ -65,6 +68,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "npm-run-all": "^4.1.5",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
