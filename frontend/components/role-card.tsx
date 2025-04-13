@@ -1,4 +1,4 @@
-import { MapPin, MoreHorizontal, Users } from "lucide-react"
+import { MapPin, MoreHorizontal, Users, Eye } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-interface Role {
+export interface RoleCardProps {
   id: string
   title: string
   department: string
@@ -20,21 +20,45 @@ interface Role {
   status: string
   applicants: number
   posted: string
-  description: string
+  description?: string
 }
 
-interface RoleCardProps {
-  role: Role
-}
+export function RoleCard({
+  id,
+  title, 
+  department, 
+  location, 
+  status, 
+  applicants, 
+  posted,
+  description
+}: RoleCardProps) {
+  const getStatusColor = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'OPEN':
+        return 'bg-green-100 text-green-800'
+      case 'CLOSED':
+        return 'bg-red-100 text-red-800'
+      case 'IN_PROGRESS':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'FILLED':
+        return 'bg-blue-100 text-blue-800'
+      case 'CANCELLED':
+        return 'bg-gray-100 text-gray-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
 
-export function RoleCard({ role }: RoleCardProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-lg">{role.title}</CardTitle>
-            <CardDescription className="mt-1">{role.department}</CardDescription>
+            <Link href={`/roles/${id}`}>
+              <CardTitle className="text-lg hover:underline">{title}</CardTitle>
+            </Link>
+            <CardDescription className="mt-1">{department}</CardDescription>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -49,37 +73,39 @@ export function RoleCard({ role }: RoleCardProps) {
               <DropdownMenuItem>Edit role</DropdownMenuItem>
               <DropdownMenuItem>Duplicate role</DropdownMenuItem>
               <DropdownMenuItem>Share role</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
-                {role.status === "active" ? "Close role" : "Delete role"}
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex items-center gap-2 mt-2">
-          <Badge variant={role.status === "active" ? "default" : "secondary"}>
-            {role.status === "active" ? "Active" : "Closed"}
-          </Badge>
-          <div className="flex items-center text-xs text-muted-foreground">
-            <MapPin className="mr-1 h-3 w-3" />
-            {role.location}
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {description && <p className="text-sm text-muted-foreground line-clamp-3">{description}</p>}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4" />
+            <span>{location}</span>
+          </div>
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <Users className="h-4 w-4" />
+            <span>{applicants} Applicants</span>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="pb-3">
-        <p className="text-sm text-muted-foreground line-clamp-2">{role.description}</p>
       </CardContent>
-      <CardFooter className="flex justify-between pt-0">
-        <div className="flex items-center text-sm text-muted-foreground">
-          <Users className="mr-1 h-4 w-4" />
-          {role.applicants} applicants
+      <CardFooter className="flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          <Badge className={`${getStatusColor(status)} capitalize`}>
+            {status.toLowerCase()}
+          </Badge>
+          <Link href={`/roles/${id}`}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700"
+            >
+              <Eye className="mr-2 h-4 w-4" /> View Details
+            </Button>
+          </Link>
         </div>
-        <div className="text-sm text-muted-foreground">Posted {role.posted}</div>
-      </CardFooter>
-      <CardFooter className="pt-2">
-        <Button asChild className="w-full">
-          <Link href={`/roles/${role.id}`}>View Role</Link>
-        </Button>
+        <span className="text-xs text-muted-foreground">{posted}</span>
       </CardFooter>
     </Card>
   )

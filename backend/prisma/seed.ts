@@ -1,139 +1,211 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, JobStatus, UserRole, InterviewStatus, InterviewType, ApplicationStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { faker } from '@faker-js/faker';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  // Clear existing data
-  await prisma.jobApplication.deleteMany();
-  await prisma.job.deleteMany();
-  await prisma.experience.deleteMany();
-  await prisma.education.deleteMany();
-  await prisma.profile.deleteMany();
-  await prisma.user.deleteMany();
+// Utility function to generate a random date
+function randomDate(start: Date, end: Date) {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+}
 
-  // Create Users
-  const users = await Promise.all([
-    prisma.user.create({
-      data: {
-        email: 'john.doe@example.com',
-        name: 'John Doe',
-        password: await bcrypt.hash('password123', 10),
-      },
-    }),
-    prisma.user.create({
-      data: {
-        email: 'jane.smith@example.com',
-        name: 'Jane Smith',
-        password: await bcrypt.hash('password456', 10),
-      },
-    }),
-    prisma.user.create({
-      data: {
-        email: 'mike.johnson@example.com',
-        name: 'Mike Johnson',
-        password: await bcrypt.hash('password789', 10),
-      },
-    }),
-  ]);
+// Generate dummy users
+const generateUsers = (count: number) => {
+  const hashedPassword = bcrypt.hashSync('password123', 10);
+  return Array.from({ length: count }, () => ({
+    email: faker.internet.email(),
+    name: faker.person.fullName(),
+    password: hashedPassword,
+    role: faker.helpers.arrayElement([UserRole.CANDIDATE, UserRole.EMPLOYER]),
+    isActive: Math.random() > 0.1, // 90% active
+    avatar: faker.image.avatarGitHub(),
+    initials: faker.person.firstName().charAt(0) + faker.person.lastName().charAt(0)
+  }));
+};
 
-  // Create Profiles
-  const profiles = await Promise.all(
-    users.map((user, index) => 
-      prisma.profile.create({
-        data: {
-          userId: user.id,
-          bio: `Professional bio for ${user.name}`,
-          location: ['New York', 'San Francisco', 'Chicago'][index],
-          skills: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'PostgreSQL'],
-        },
-      })
-    )
-  );
-
-  // Create Education
-  await Promise.all(
-    profiles.map((profile, index) => 
-      prisma.education.createMany({
-        data: [
-          {
-            profileId: profile.id,
-            institution: ['Harvard University', 'MIT', 'Stanford'][index],
-            degree: ['Computer Science', 'Software Engineering', 'Data Science'][index],
-            startDate: new Date('2015-09-01'),
-            endDate: new Date('2019-06-30'),
-          },
-        ],
-      })
-    )
-  );
-
-  // Create Experience
-  await Promise.all(
-    profiles.map((profile, index) => 
-      prisma.experience.createMany({
-        data: [
-          {
-            profileId: profile.id,
-            company: ['Google', 'Facebook', 'Amazon'][index],
-            position: ['Software Engineer', 'Senior Developer', 'Tech Lead'][index],
-            startDate: new Date('2019-07-01'),
-            endDate: null,
-            description: 'Working on cutting-edge technology solutions',
-          },
-        ],
-      })
-    )
-  );
-
-  // Create Jobs
-  const jobs = await Promise.all([
-    prisma.job.create({
-      data: {
-        title: 'Senior Software Engineer',
-        description: 'Looking for an experienced software engineer',
-        company: 'Tech Innovations Inc.',
-        location: 'San Francisco, CA',
-        salary: 150000,
-        userId: users[0].id,
-      },
-    }),
-    prisma.job.create({
-      data: {
-        title: 'Frontend Developer',
-        description: 'React and TypeScript expert needed',
-        company: 'Web Solutions LLC',
-        location: 'New York, NY',
-        salary: 120000,
-        userId: users[1].id,
-      },
-    }),
-  ]);
-
-  // Create Job Applications
-  await prisma.jobApplication.createMany({
-    data: [
-      {
-        jobId: jobs[0].id,
-        userId: users[1].id,
-        status: 'APPLIED',
-      },
-      {
-        jobId: jobs[1].id,
-        userId: users[0].id,
-        status: 'INTERVIEWED',
-      },
+// Generate dummy profiles
+const generateProfiles = (users: any[]) => {
+  return users.map(user => ({
+    userId: user.id,
+    bio: faker.lorem.paragraph(),
+    location: faker.location.city(),
+    skills: [
+      faker.person.jobDescriptor(),
+      faker.person.jobDescriptor(),
+      faker.person.jobDescriptor(),
     ],
-  });
+    education: {
+      create: [{
+        institution: faker.company.name(),
+        degree: faker.person.jobTitle(),
+        fieldOfStudy: faker.commerce.department(),
+        startDate: faker.date.past(),
+        endDate: faker.date.recent(),
+        description: faker.lorem.sentence()
+      }]
+    },
+    experience: {
+      create: [{
+        company: faker.company.name(),
+        position: faker.person.jobTitle(),
+        startDate: faker.date.past(),
+        endDate: faker.date.recent(),
+        description: faker.lorem.paragraph()
+      }]
+    }
+  }));
+};
 
-  console.log('Dummy data created successfully!');
+// Generate dummy jobs
+const generateJobs = (users: any[]) => {
+  return users.map(user => ({
+    title: faker.person.jobTitle(),
+    description: faker.lorem.paragraph(),
+    jobOverview: [
+      'Develop and maintain scalable web applications using modern frameworks',
+      'Collaborate with cross-functional teams to define, design, and ship new features',
+      'Write clean, maintainable, and testable code',
+      'Troubleshoot and debug applications to optimize performance',
+      'Participate in code reviews and provide constructive feedback'
+    ],
+    responsibilities: [
+      'Design and implement new features and improvements to our web platform',
+      'Optimize application performance and ensure high-quality code',
+      'Collaborate with product managers and designers to understand requirements',
+      'Mentor junior developers and contribute to team knowledge sharing',
+      'Stay updated with the latest web development trends and technologies'
+    ],
+    department: faker.commerce.department(),
+    location: faker.location.city(),
+    salary: parseFloat(faker.commerce.price({ min: 30000, max: 150000 })),
+    status: JobStatus.OPEN,
+    team: faker.company.buzzPhrase(),
+    hiringManager: faker.person.fullName(),
+    company: faker.company.name(),
+    userId: user.id
+  }));
+};
+
+// Generate dummy job applications
+const generateJobApplications = (jobs: any[], users: any[]) => {
+  const applications: any[] = [];
+  for (const job of jobs) {
+    const applicantUsers = users.filter(user => user.id !== job.userId);
+    for (const user of applicantUsers.slice(0, faker.number.int({ min: 1, max: 5 }))) {
+      applications.push({
+        jobId: job.id,
+        userId: user.id,
+        status: faker.helpers.arrayElement([
+          'APPLIED', 
+          'INTERVIEWED', 
+          'OFFERED', 
+          'REJECTED'
+        ]) as ApplicationStatus,
+        currentStage: faker.helpers.arrayElement([
+          'APPLICATION', 
+          'SCREENING', 
+          'INTERVIEW', 
+          'ASSESSMENT', 
+          'OFFER', 
+          'HIRED', 
+          'REJECTED'
+        ]),
+        notes: faker.lorem.sentence()
+      });
+    }
+  }
+  return applications;
+};
+
+// Generate dummy interviews
+const generateInterviews = (jobApplications: any[]) => {
+  return jobApplications
+    .filter(() => Math.random() > 0.3)
+    .map(application => ({
+      jobApplicationId: application.id,
+      candidateId: application.userId,
+      interviewType: faker.helpers.arrayElement(Object.values(InterviewType)),
+      status: faker.helpers.arrayElement(Object.values(InterviewStatus)),
+      scheduledDate: randomDate(new Date(), new Date(2024, 11, 31)),
+      interviewers: [faker.person.fullName()],
+      duration: faker.number.int({ min: 30, max: 90 }),
+      notes: faker.lorem.sentence()
+    }));
+};
+
+// Generate dummy application documents
+const generateApplicationDocuments = (jobs: any[]) => {
+  return jobs.flatMap(job => 
+    Array.from({ length: faker.number.int({ min: 0, max: 3 }) }, () => ({
+      jobId: job.id,
+      name: faker.system.fileName(),
+      fileType: faker.helpers.arrayElement(['PDF', 'DOCX', 'TXT', 'XLSX']),
+      fileUrl: faker.internet.url(),
+      uploadedBy: faker.person.fullName(),
+      description: faker.lorem.sentence()
+    }))
+  );
+};
+
+async function main() {
+  try {
+    // Delete existing data in the correct order to avoid foreign key constraints
+    await prisma.interview.deleteMany();
+    await prisma.jobApplication.deleteMany();
+    await prisma.applicationDocument.deleteMany();
+    await prisma.job.deleteMany();
+    await prisma.experience.deleteMany();
+    await prisma.education.deleteMany();
+    await prisma.profile.deleteMany();
+    await prisma.user.deleteMany();
+
+    // Generate and create users
+    const userInputs = generateUsers(20);
+    const users = await Promise.all(
+      userInputs.map(user => prisma.user.create({ data: user }))
+    );
+
+    // Generate and create profiles with education and experience
+    const profileInputs = generateProfiles(users);
+    const profiles = await Promise.all(
+      profileInputs.map(profile => prisma.profile.create({ data: profile }))
+    );
+
+    // Generate and create jobs
+    const jobInputs = generateJobs(users);
+    const jobs = await Promise.all(
+      jobInputs.map(job => prisma.job.create({ data: job }))
+    );
+
+    // Generate and create application documents
+    const documentInputs = generateApplicationDocuments(jobs);
+    await Promise.all(
+      documentInputs.map(doc => prisma.applicationDocument.create({ data: doc }))
+    );
+
+    // Generate and create job applications
+    const jobApplicationInputs = generateJobApplications(jobs, users);
+    const jobApplications = await Promise.all(
+      jobApplicationInputs.map(application => prisma.jobApplication.create({ data: application }))
+    );
+
+    // Generate and create interviews
+    const interviewInputs = generateInterviews(jobApplications);
+    await Promise.all(
+      interviewInputs.map(interview => prisma.interview.create({ data: interview }))
+    );
+
+    console.log('Seed data created successfully');
+  } catch (error) {
+    console.error('Error seeding data:', error);
+    process.exit(1);
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 main()
   .catch((e) => {
     console.error(e);
     process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
   });

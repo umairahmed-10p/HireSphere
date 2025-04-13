@@ -1,9 +1,18 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronDown, Filter, Plus, Search, SlidersHorizontal, Users } from "lucide-react"
-import Link from "next/link"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useState, useEffect } from "react"
+import { 
+  ChevronDown, 
+  Filter, 
+  Plus, 
+  Search, 
+  SlidersHorizontal, 
+  Users, 
+  Activity as Timeline,  
+  Clock 
+} from "lucide-react"
+import Link from 'next/link'
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -18,115 +27,64 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { PageHeader } from "@/components/shared/page-header"
-
-// Sample candidate data
-const candidates = [
-  {
-    id: "1",
-    name: "Alex Johnson",
-    role: "Senior Frontend Developer",
-    stage: "Technical Interview",
-    department: "Engineering",
-    avatar: "/placeholder.svg?height=40&width=40",
-    initials: "AJ",
-    appliedDate: "2 days ago",
-    skills: ["React", "TypeScript"],
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Sarah Williams",
-    role: "Product Manager",
-    stage: "HR Screening",
-    department: "Product",
-    avatar: "/placeholder.svg?height=40&width=40",
-    initials: "SW",
-    appliedDate: "3 days ago",
-    skills: ["Product Strategy", "Agile"],
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Michael Chen",
-    role: "UX Designer",
-    stage: "Portfolio Review",
-    department: "Design",
-    avatar: "/placeholder.svg?height=40&width=40",
-    initials: "MC",
-    appliedDate: "5 days ago",
-    skills: ["Figma", "User Research"],
-    status: "active",
-  },
-  {
-    id: "4",
-    name: "Emily Rodriguez",
-    role: "Marketing Specialist",
-    stage: "Final Interview",
-    department: "Marketing",
-    avatar: "/placeholder.svg?height=40&width=40",
-    initials: "ER",
-    appliedDate: "1 week ago",
-    skills: ["Content Marketing", "SEO"],
-    status: "active",
-  },
-  {
-    id: "5",
-    name: "David Lee",
-    role: "DevOps Engineer",
-    stage: "Offer",
-    department: "Engineering",
-    avatar: "/placeholder.svg?height=40&width=40",
-    initials: "DL",
-    appliedDate: "1 week ago",
-    skills: ["Kubernetes", "AWS"],
-    status: "active",
-  },
-  {
-    id: "6",
-    name: "Lisa Wong",
-    role: "Data Scientist",
-    stage: "Rejected",
-    department: "Data",
-    avatar: "/placeholder.svg?height=40&width=40",
-    initials: "LW",
-    appliedDate: "2 weeks ago",
-    skills: ["Python", "Machine Learning"],
-    status: "archived",
-  },
-  {
-    id: "7",
-    name: "James Taylor",
-    role: "Frontend Developer",
-    stage: "Rejected",
-    department: "Engineering",
-    avatar: "/placeholder.svg?height=40&width=40",
-    initials: "JT",
-    appliedDate: "3 weeks ago",
-    skills: ["JavaScript", "CSS"],
-    status: "archived",
-  },
-]
+import { Candidate, candidatesApi } from "@/lib/api/candidates"
+import { HiringTimeline } from "@/components/hiring-timeline"
+import { AddCandidateForm } from "@/components/forms/add-candidate-form"
 
 export function CandidatesPage() {
+  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [filteredCandidates, setFilteredCandidates] = useState<Candidate[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("active")
+  const [activeTab, setActiveTab] = useState("ALL")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [expandedCandidates, setExpandedCandidates] = useState<Record<string, boolean>>({})
 
-  const filteredCandidates = candidates.filter(
-    (candidate) =>
-      candidate.status === activeTab &&
-      (candidate.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        candidate.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        candidate.department.toLowerCase().includes(searchQuery.toLowerCase())),
-  )
+  useEffect(() => {
+    async function fetchCandidates() {
+      try {
+        setLoading(true)
+        const fetchedCandidates = activeTab === 'ALL' 
+          ? await candidatesApi.getAllCandidates() 
+          : await candidatesApi.getCandidates({ 
+              applicationStatus: activeTab === 'APPLIED' ? 'APPLIED' : activeTab 
+            })
+        setCandidates(fetchedCandidates)
+        setLoading(false)
+      } catch (err) {
+        console.error('Failed to fetch candidates:', err)
+        setError('Failed to load candidates')
+        setLoading(false)
+      }
+    }
+
+    fetchCandidates()
+  }, [activeTab])
+
+  useEffect(() => {
+    const filtered = candidates.filter(
+      (candidate) =>
+        (candidate.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (candidate.applications?.[0]?.job?.title || '').toLowerCase().includes(searchQuery.toLowerCase())) &&
+        (activeTab === 'ALL' || 
+         (activeTab === 'APPLIED' 
+          ? candidate.applications?.some(app => app.status === 'APPLIED')
+          : candidate.applications?.[0]?.status === activeTab))
+    )
+    setFilteredCandidates(filtered)
+  }, [candidates, searchQuery, activeTab])
+
+  if (loading) return <div>Loading candidates...</div>
+  if (error) return <div>Error: {error}</div>
 
   return (
     <div className="h-full space-y-6">
       <PageHeader
         title="Candidates"
         description="Manage and track all candidates in your pipeline"
-        actionLabel="Add Candidate"
-        actionLink="/candidates/new"
-      />
+      >
+        <AddCandidateForm />
+      </PageHeader>
 
       <div className="flex flex-col gap-4">
         <div className="relative flex-1">
@@ -165,109 +123,123 @@ export function CandidatesPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="active" onValueChange={setActiveTab}>
+      <Tabs 
+        value={activeTab} 
+        onValueChange={(value) => {
+          console.log('Tab changed to:', value);
+          setActiveTab(value);
+        }} 
+        defaultValue="ALL"
+      >
         <TabsList>
-          <TabsTrigger value="active">Active Candidates</TabsTrigger>
-          <TabsTrigger value="archived">Archived</TabsTrigger>
+          <TabsTrigger value="ALL">All</TabsTrigger>
+          <TabsTrigger value="APPLIED">Applied</TabsTrigger>
+          <TabsTrigger value="INTERVIEWED">Interviewed</TabsTrigger>
+          <TabsTrigger value="OFFERED">Offered</TabsTrigger>
+          <TabsTrigger value="REJECTED">Rejected</TabsTrigger>
         </TabsList>
-        <TabsContent value="active" className="space-y-4 mt-4">
-          <div className="grid gap-4">
-            {filteredCandidates.length === 0 ? (
-              <Card>
-                <CardContent className="flex h-[200px] items-center justify-center">
-                  <div className="flex flex-col items-center gap-2 text-center">
-                    <Users className="h-10 w-10 text-muted-foreground" />
-                    <h3 className="text-lg font-medium">No candidates found</h3>
-                    <p className="text-sm text-muted-foreground max-w-[300px]">
-                      Try adjusting your search or filters to find what you're looking for
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              filteredCandidates.map((candidate) => (
-                <Card key={candidate.id}>
-                  <CardContent className="p-6">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={candidate.avatar} alt={candidate.name} />
-                          <AvatarFallback>{candidate.initials}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-medium">{candidate.name}</h3>
-                          <p className="text-sm text-muted-foreground">{candidate.role}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline">{candidate.stage}</Badge>
-                            <span className="text-xs text-muted-foreground">{candidate.department}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2 md:items-end">
-                        <div className="text-sm">Applied {candidate.appliedDate}</div>
-                        <div className="flex flex-wrap gap-1">
-                          {candidate.skills.map((skill) => (
-                            <Badge key={skill} variant="secondary" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex justify-end">
-                      <Button asChild>
-                        <Link href={`/candidates/${candidate.id}`}>View Profile</Link>
-                      </Button>
+        {['ALL', 'APPLIED', 'INTERVIEWED', 'OFFERED', 'REJECTED'].map((tab) => (
+          <TabsContent key={tab} value={tab} className="space-y-4 mt-4">
+            <div className="grid gap-4">
+              {filteredCandidates.length === 0 ? (
+                <Card>
+                  <CardContent className="flex h-[200px] items-center justify-center">
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <Users className="h-10 w-10 text-muted-foreground" />
+                      <h3 className="text-lg font-medium">No {tab.toLowerCase()} candidates</h3>
+                      <p className="text-sm text-muted-foreground max-w-[300px]">
+                        {tab === 'ALL' 
+                          ? 'Try adjusting your search or filters to find candidates'
+                          : `Candidates with ${tab.toLowerCase()} status will appear here`}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
-              ))
-            )}
-          </div>
-        </TabsContent>
-        <TabsContent value="archived" className="space-y-4 mt-4">
-          <div className="grid gap-4">
-            {candidates
-              .filter((candidate) => candidate.status === "archived")
-              .map((candidate) => (
-                <Card key={candidate.id}>
-                  <CardContent className="p-6">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                      <div className="flex items-center gap-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={candidate.avatar} alt={candidate.name} />
-                          <AvatarFallback>{candidate.initials}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-medium">{candidate.name}</h3>
-                          <p className="text-sm text-muted-foreground">{candidate.role}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline">{candidate.stage}</Badge>
-                            <span className="text-xs text-muted-foreground">{candidate.department}</span>
+              ) : (
+                filteredCandidates.map((candidate) => (
+                  <Card key={candidate.id}>
+                    <CardContent className="p-6">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback>{candidate.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3 className="font-medium">{candidate.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {candidate.applications?.[0]?.job?.title || 'No Job Application'}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline">
+                                {candidate.applications?.[0]?.status || 'Unknown'}
+                              </Badge>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                  // Toggle timeline visibility for this specific candidate
+                                  const newExpandedCandidates = { ...expandedCandidates }
+                                  newExpandedCandidates[candidate.id] = !newExpandedCandidates[candidate.id]
+                                  setExpandedCandidates(newExpandedCandidates)
+                                }}
+                              >
+                                <Timeline className="mr-2 h-4 w-4" /> View Timeline
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex flex-col gap-2 md:items-end">
-                        <div className="text-sm">Applied {candidate.appliedDate}</div>
-                        <div className="flex flex-wrap gap-1">
-                          {candidate.skills.map((skill) => (
-                            <Badge key={skill} variant="secondary" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
+                        <div className="flex items-center gap-2">
+                          <Link href={`/candidates/${candidate.id}`}>
+                            <Button variant="outline" size="sm">
+                              View Profile
+                            </Button>
+                          </Link>
+                          <Link href={`/candidates/${candidate.id}/schedule`}>
+                            <Button size="sm">
+                              Schedule Interview
+                            </Button>
+                          </Link>
                         </div>
                       </div>
-                    </div>
-                    <div className="mt-4 flex justify-end">
-                      <Button asChild>
-                        <Link href={`/candidates/${candidate.id}`}>View Profile</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
-        </TabsContent>
+                      {expandedCandidates[candidate.id] && (
+                        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                          <HiringTimeline 
+                            candidateId={candidate.id} 
+                            jobId={candidate.applications?.[0]?.job?.id || ''} 
+                            steps={[
+                              {
+                                id: '1',
+                                type: 'APPLICATION',
+                                title: 'Application Submitted',
+                                date: candidate.applications?.[0]?.createdAt || new Date().toISOString(),
+                                status: 'COMPLETED',
+                                details: `Applied for ${candidate.applications?.[0]?.job?.title || 'Job Role'}`
+                              },
+                              // Add more steps based on candidate's application status
+                              {
+                                id: '2',
+                                type: 'SCREENING',
+                                title: 'Initial Screening',
+                                date: new Date().toISOString(),
+                                status: candidate.applications?.[0]?.status === 'SCREENING' 
+                                  ? 'IN_PROGRESS' 
+                                  : candidate.applications?.[0]?.status === 'APPLIED' 
+                                    ? 'PENDING' 
+                                    : 'COMPLETED',
+                                details: 'HR initial review'
+                              },
+                              // More steps can be dynamically added based on application status
+                            ]} 
+                          />
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   )

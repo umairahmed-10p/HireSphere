@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { BriefcaseBusiness, ChevronDown, Filter, Plus, Search, SlidersHorizontal } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -16,161 +16,146 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RoleCard } from "@/components/role-card"
 import { PageHeader } from "@/components/shared/page-header"
+import { jobsApi, Job } from "@/lib/api/jobs"
 
-// Sample data
-const roles = [
-  {
-    id: "1",
-    title: "Senior Frontend Developer",
-    department: "Engineering",
-    location: "Remote",
-    status: "active",
-    applicants: 24,
-    posted: "2 weeks ago",
-    description:
-      "We're looking for an experienced frontend developer with React expertise to join our engineering team.",
-  },
-  {
-    id: "2",
-    title: "Product Manager",
-    department: "Product",
-    location: "New York, NY",
-    status: "active",
-    applicants: 18,
-    posted: "1 week ago",
-    description: "Join our product team to help define and execute our product roadmap and strategy.",
-  },
-  {
-    id: "3",
-    title: "UX Designer",
-    department: "Design",
-    location: "San Francisco, CA",
-    status: "active",
-    applicants: 32,
-    posted: "3 weeks ago",
-    description: "We're seeking a talented UX designer to create intuitive and engaging user experiences.",
-  },
-  {
-    id: "4",
-    title: "DevOps Engineer",
-    department: "Engineering",
-    location: "Remote",
-    status: "active",
-    applicants: 12,
-    posted: "4 days ago",
-    description: "Help us build and maintain our cloud infrastructure and CI/CD pipelines.",
-  },
-  {
-    id: "5",
-    title: "Marketing Specialist",
-    department: "Marketing",
-    location: "Chicago, IL",
-    status: "closed",
-    applicants: 45,
-    posted: "2 months ago",
-    description: "This role is focused on developing and executing marketing campaigns across various channels.",
-  },
-  {
-    id: "6",
-    title: "Data Scientist",
-    department: "Data",
-    location: "Remote",
-    status: "closed",
-    applicants: 28,
-    posted: "1 month ago",
-    description: "Join our data team to analyze user behavior and help drive product decisions.",
-  },
-]
+export function Roles() {
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-export function RolesPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("active")
+  useEffect(() => {
+    async function fetchJobs() {
+      try {
+        const response = await jobsApi.getJobs()
+        setJobs(response.jobs)
+        setLoading(false)
+      } catch (err) {
+        setError('Failed to fetch jobs')
+        setLoading(false)
+      }
+    }
 
-  const filteredRoles = roles.filter(
-    (role) =>
-      role.status === activeTab &&
-      (role.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        role.department.toLowerCase().includes(searchQuery.toLowerCase())),
-  )
+    fetchJobs()
+  }, [])
+
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([])
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
+
+  const departments = Array.from(new Set(jobs.map(job => job.department || 'Unspecified')))
+  const statuses = ['OPEN', 'CLOSED', 'IN_PROGRESS', 'FILLED', 'CANCELLED']
+
+  const filteredJobs = jobs.filter(job => {
+    const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          job.description.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesDepartment = selectedDepartments.length === 0 || 
+                               selectedDepartments.includes(job.department || 'Unspecified')
+    const matchesStatus = !selectedStatus || job.status === selectedStatus
+
+    return matchesSearch && matchesDepartment && matchesStatus
+  })
+
+  if (loading) return <div>Loading jobs...</div>
+  if (error) return <div>Error: {error}</div>
 
   return (
-    <div className="h-full space-y-6">
-      <PageHeader
-        title="Roles"
-        description="Manage your open positions and job listings"
-        actionLabel="Post New Role"
-        actionLink="/roles/new"
+    <div className="space-y-4">
+      <PageHeader 
+        title="Job Openings" 
+        description="Explore exciting opportunities at our company" 
       />
 
-      <div className="flex flex-col gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search roles..."
-            className="pl-8 w-full"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+      <div className="flex items-center space-x-2">
+        <div className="relative flex-grow">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input 
+            placeholder="Search jobs..." 
+            className="pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex gap-2">
-                <Filter className="h-4 w-4" />
-                <span>Department</span>
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Filter by Department</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem checked>Engineering</DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked>Product</DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked>Design</DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked>Marketing</DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked>Data</DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="outline" className="flex gap-2">
-            <SlidersHorizontal className="h-4 w-4" />
-            <span>More Filters</span>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="flex items-center">
+              <Filter className="mr-2 h-4 w-4" /> Departments
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>Select Departments</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {departments.map(dept => (
+              <DropdownMenuCheckboxItem
+                key={dept}
+                checked={selectedDepartments.includes(dept)}
+                onCheckedChange={(checked) => {
+                  setSelectedDepartments(prev => 
+                    checked 
+                      ? [...prev, dept] 
+                      : prev.filter(d => d !== dept)
+                  )
+                }}
+              >
+                {dept}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="flex items-center">
+              <SlidersHorizontal className="mr-2 h-4 w-4" /> Status
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>Select Status</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {statuses.map(status => (
+              <DropdownMenuCheckboxItem
+                key={status}
+                checked={selectedStatus === status}
+                onCheckedChange={(checked) => {
+                  setSelectedStatus(checked ? status : null)
+                }}
+              >
+                {status}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Link href="/create-job">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" /> Create Job
           </Button>
-        </div>
+        </Link>
       </div>
 
-      <Tabs defaultValue="active" onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="active">Active Roles</TabsTrigger>
-          <TabsTrigger value="closed">Closed Roles</TabsTrigger>
-          <TabsTrigger value="draft">Drafts</TabsTrigger>
-        </TabsList>
-        <TabsContent value="active" className="space-y-4 mt-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredRoles.map((role) => (
-              <RoleCard key={role.id} role={role} />
-            ))}
-          </div>
-        </TabsContent>
-        <TabsContent value="closed" className="space-y-4 mt-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {roles
-              .filter((role) => role.status === "closed")
-              .map((role) => (
-                <RoleCard key={role.id} role={role} />
-              ))}
-          </div>
-        </TabsContent>
-        <TabsContent value="draft" className="space-y-4 mt-4">
-          <div className="flex h-[200px] items-center justify-center rounded-md border border-dashed">
-            <div className="flex flex-col items-center gap-2 text-center">
-              <BriefcaseBusiness className="h-10 w-10 text-muted-foreground" />
-              <h3 className="text-lg font-medium">No draft roles</h3>
-              <p className="text-sm text-muted-foreground max-w-[150px]">You don't have any draft roles yet</p>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredJobs.map(job => (
+          <RoleCard 
+            key={job.id}
+            id={job.id}
+            title={job.title}
+            department={job.department || 'Unspecified'}
+            location={job.location}
+            status={job.status}
+            applicants={job.numberOfApplicants || 0}
+            posted={new Date(job.createdAt).toLocaleDateString()}
+            description={job.description}
+          />
+        ))}
+      </div>
+
+      {filteredJobs.length === 0 && (
+        <div className="text-center text-muted-foreground py-8">
+          No jobs found matching your criteria.
+        </div>
+      )}
     </div>
   )
 }

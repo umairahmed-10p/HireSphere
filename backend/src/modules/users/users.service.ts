@@ -35,7 +35,6 @@ export class UsersService {
         id: true,
         email: true,
         name: true,
-        isActive: true,
         createdAt: true,
       },
     });
@@ -72,7 +71,6 @@ export class UsersService {
         id: true,
         email: true,
         name: true,
-        isActive: true,
         createdAt: true,
       },
     });

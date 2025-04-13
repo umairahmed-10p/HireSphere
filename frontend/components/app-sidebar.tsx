@@ -1,6 +1,6 @@
 "use client"
 
-import { BarChart3, BriefcaseBusiness, Calendar, Home, Plus, Settings, Sparkles, Users } from "lucide-react"
+import { BarChart3, BriefcaseBusiness, Calendar, Home, PanelLeft, Plus, Settings, Sparkles, Users } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -56,7 +56,7 @@ export function AppSidebar() {
   ]
 
   return (
-    <Sidebar data-variant="inset" className="flex">
+    <Sidebar data-variant="inset" collapsible="icon" className="flex">
       <div className="flex h-full w-full flex-col gap-2">
         <SidebarHeader className="flex items-center justify-between p-4">
           <div className="flex items-center gap-2">
@@ -65,7 +65,11 @@ export function AppSidebar() {
             </div>
             <span className="text-lg font-semibold group-data-[collapsible=icon]:hidden">HireSphere</span>
           </div>
-          <SidebarTrigger />
+          <SidebarTrigger>
+            <Button variant="ghost" size="icon">
+              <PanelLeft className="h-4 w-4" />
+            </Button>
+          </SidebarTrigger>
         </SidebarHeader>
         <SidebarContent className="flex flex-col h-[calc(100vh-4rem)]">
           <SidebarGroup>
@@ -97,9 +101,12 @@ export function AppSidebar() {
                   size="default"
                   className="w-full flex items-center justify-start px-3 py-2"
                   variant="outline"
+                  asChild
                 >
-                  <Plus className="h-4 w-4 flex-shrink-0" />
-                  <span className="ml-3">Post New Role</span>
+                  <Link href="/roles/new">
+                    <Plus className="h-4 w-4 flex-shrink-0" />
+                    <span className="ml-3">Post New Role</span>
+                  </Link>
                 </Button>
               </div>
               <div className="hidden group-data-[collapsible=icon]:block">
@@ -108,8 +115,11 @@ export function AppSidebar() {
                     size="icon"
                     variant="ghost"
                     className="w-full flex items-center px-3 py-2"
+                    asChild
                   >
-                    <Plus className="h-4 w-4" />
+                    <Link href="/roles/new">
+                      <Plus className="h-4 w-4" />
+                    </Link>
                   </Button>
                 </SidebarMenuButton>
               </div>
